@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { Send, Brain, Shield, AlertOctagon, Phone, Heart, ArrowLeft, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -8,6 +8,7 @@ interface Message {
   role: 'user' | 'assistant';
   content: string;
   timestamp: number;
+  isTyping?: boolean;
 }
 
 interface CrisisContact {
@@ -23,28 +24,67 @@ interface ChatApiResponse {
   lockChat?: boolean;
 }
 
+function TypewriterMessage({ content, onDone }: { content: string; onDone?: () => void }) {
+  const [displayed, setDisplayed] = useState('');
+  const [done, setDone] = useState(false);
+  const indexRef = useRef(0);
+
+  useEffect(() => {
+    indexRef.current = 0;
+    setDisplayed('');
+    setDone(false);
+
+    const interval = setInterval(() => {
+      if (indexRef.current < content.length) {
+        setDisplayed(content.slice(0, indexRef.current + 1));
+        indexRef.current++;
+      } else {
+        clearInterval(interval);
+        setDone(true);
+        onDone?.();
+      }
+    }, 18);
+
+    return () => clearInterval(interval);
+  }, [content]);
+
+  return (
+    <span>
+      {displayed}
+      {!done && (
+        <span className="inline-block w-0.5 h-4 bg-violet-400 ml-0.5 animate-pulse align-middle" />
+      )}
+    </span>
+  );
+}
+
 export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([
     {
       role: 'assistant',
       content: 'Olá. Eu sou o MindAI, seu assistente terapêutico baseado em TCC. Como você está se sentindo hoje? Lembre-se: este é um espaço seguro.',
       timestamp: Date.now(),
+      isTyping: false,
     },
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isLocked, setIsLocked] = useState(false);
   const [crisisContacts, setCrisisContacts] = useState<CrisisContact[]>([]);
+  const [typingIndex, setTypingIndex] = useState<number | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
-  }, [messages]);
+  }, [messages, typingIndex]);
+
+  const handleTypingDone = useCallback(() => {
+    setTypingIndex(null);
+  }, []);
 
   async function handleSend() {
     const trimmed = input.trim();
-    if (!trimmed || isLoading || isLocked) return;
+    if (!trimmed || isLoading || isLocked || typingIndex !== null) return;
 
     const userMessage: Message = { role: 'user', content: trimmed, timestamp: Date.now() };
     setMessages((prev) => [...prev, userMessage]);
@@ -62,16 +102,43 @@ export default function ChatPage() {
       if (data.status === 'CRISIS') {
         setIsLocked(true);
         setCrisisContacts(data.contacts ?? []);
-        setMessages((prev) => [...prev, { role: 'assistant', content: data.message, timestamp: Date.now() }]);
+        const crisisMsg: Message = {
+          role: 'assistant',
+          content: data.message,
+          timestamp: Date.now(),
+          isTyping: true,
+        };
+        setMessages((prev) => {
+          const next = [...prev, crisisMsg];
+          setTypingIndex(next.length - 1);
+          return next;
+        });
         return;
       }
 
-      setMessages((prev) => [...prev, { role: 'assistant', content: data.message, timestamp: Date.now() }]);
+      const aiMessage: Message = {
+        role: 'assistant',
+        content: data.message,
+        timestamp: Date.now(),
+        isTyping: true,
+      };
+      setMessages((prev) => {
+        const next = [...prev, aiMessage];
+        setTypingIndex(next.length - 1);
+        return next;
+      });
     } catch {
-      setMessages((prev) => [
-        ...prev,
-        { role: 'assistant', content: 'Desculpe, tive um problema técnico. Pode tentar novamente?', timestamp: Date.now() },
-      ]);
+      const errMessage: Message = {
+        role: 'assistant',
+        content: 'Desculpe, tive um problema técnico. Pode tentar novamente?',
+        timestamp: Date.now(),
+        isTyping: true,
+      };
+      setMessages((prev) => {
+        const next = [...prev, errMessage];
+        setTypingIndex(next.length - 1);
+        return next;
+      });
     } finally {
       setIsLoading(false);
     }
@@ -103,7 +170,7 @@ export default function ChatPage() {
               <p className="font-semibold">MindAI Therapist</p>
               <div className="flex items-center gap-1.5 text-xs text-emerald-400">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                Conectado · TCC v1
+                {typingIndex !== null ? 'Digitando...' : 'Conectado · TCC v1'}
               </div>
             </div>
           </div>
@@ -120,7 +187,7 @@ export default function ChatPage() {
           {messages.map((msg, i) => (
             <div
               key={i}
-              style={{ animationDelay: `${i * 50}ms` }}
+              style={{ animationDelay: `${Math.min(i * 50, 300)}ms` }}
               className={`flex gap-3 animate-fade-up ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
             >
               {msg.role === 'assistant' && (
@@ -129,13 +196,19 @@ export default function ChatPage() {
                 </div>
               )}
               <div
-                className={`max-w-[75%] rounded-2xl px-5 py-3 transition-all duration-200 hover:scale-[1.01] ${
+                className={`max-w-[75%] rounded-2xl px-5 py-3 transition-all duration-200 ${
                   msg.role === 'user'
                     ? 'bg-gradient-to-br from-violet-600 to-fuchsia-600 text-white shadow-[0_4px_20px_rgba(139,92,246,0.2)]'
                     : 'bg-white/[0.04] border border-white/10 text-white/90'
                 }`}
               >
-                <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</p>
+                <p className="text-sm leading-relaxed whitespace-pre-wrap">
+                  {msg.role === 'assistant' && msg.isTyping && typingIndex === i ? (
+                    <TypewriterMessage content={msg.content} onDone={handleTypingDone} />
+                  ) : (
+                    msg.content
+                  )}
+                </p>
                 <p className="text-[10px] opacity-40 mt-1 text-right">
                   {new Date(msg.timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                 </p>
@@ -143,7 +216,7 @@ export default function ChatPage() {
             </div>
           ))}
 
-          {/* Loading dots */}
+          {/* Loading dots — só aparece enquanto aguarda resposta da API */}
           {isLoading && (
             <div className="flex gap-3 justify-start animate-fade-up">
               <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center shrink-0 mt-1">
@@ -165,18 +238,18 @@ export default function ChatPage() {
           <div className="max-w-4xl mx-auto px-6 py-4">
             <div className="flex items-end gap-3 rounded-2xl border border-white/10 bg-white/[0.03] p-2 focus-within:border-violet-500/40 focus-within:bg-white/[0.05] transition-all duration-300">
               <textarea
-                ref={inputRef}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Compartilhe o que está sentindo..."
+                placeholder={typingIndex !== null ? 'Aguarde a resposta...' : 'Compartilhe o que está sentindo...'}
+                disabled={typingIndex !== null}
                 rows={1}
                 spellCheck={false}
-                className="flex-1 bg-transparent resize-none px-3 py-2 text-sm focus:outline-none placeholder:text-white/30 max-h-32"
+                className="flex-1 bg-transparent resize-none px-3 py-2 text-sm focus:outline-none placeholder:text-white/30 max-h-32 disabled:opacity-50"
               />
               <button
                 onClick={handleSend}
-                disabled={!input.trim() || isLoading}
+                disabled={!input.trim() || isLoading || typingIndex !== null}
                 className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center transition-all duration-200 hover:scale-110 hover:shadow-[0_0_20px_rgba(139,92,246,0.4)] shrink-0"
               >
                 {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
@@ -193,9 +266,7 @@ export default function ChatPage() {
       {isLocked && (
         <div className="fixed inset-0 z-50 bg-gradient-to-br from-red-950/98 via-red-900/95 to-black/98 backdrop-blur-xl flex items-center justify-center p-6 animate-fade-in">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(220,38,38,0.2),transparent_60%)] pointer-events-none animate-glow-pulse" />
-
           <div className="relative max-w-2xl w-full animate-scale-in">
-            {/* Ícone pulsante */}
             <div className="flex items-center justify-center mb-8">
               <div className="relative">
                 <div className="absolute inset-0 rounded-full bg-red-500/20 animate-pulse-ring scale-150" />
@@ -205,7 +276,6 @@ export default function ChatPage() {
                 </div>
               </div>
             </div>
-
             <div className="text-center mb-8 animate-fade-up [animation-delay:200ms]">
               <p className="text-xs uppercase tracking-[0.3em] text-red-400 mb-3">Protocolo de Crise Ativado</p>
               <h1 className="text-3xl md:text-4xl font-bold mb-4">Você não está sozinho(a).</h1>
@@ -213,7 +283,6 @@ export default function ChatPage() {
                 Detectamos que você pode estar passando por um momento muito difícil. Por favor, fale com alguém agora — ajuda profissional está a um telefonema de distância.
               </p>
             </div>
-
             <div className="space-y-3 mb-6">
               {crisisContacts.map((contact, i) => (
                 <a
@@ -233,7 +302,6 @@ export default function ChatPage() {
                 </a>
               ))}
             </div>
-
             <div className="flex items-center justify-center gap-2 text-red-200/60 text-sm animate-fade-up [animation-delay:700ms]">
               <Heart className="w-4 h-4 animate-pulse" /> Sua vida importa. Procure ajuda agora.
             </div>
