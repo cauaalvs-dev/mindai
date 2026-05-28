@@ -4,15 +4,15 @@
 [![Vercel](https://img.shields.io/badge/Vercel-Deployed-black?style=for-the-badge&logo=vercel)](https://mindai-j7v1.vercel.app/)
 [![License](https://img.shields.io/github/license/cauaalvs-dev/mindai?style=for-the-badge&color=8b5cf6)](LICENSE)
 
-# MindAI 🧠
+# MindAI
 
 Conversational AI platform for complementary psychological support based on Cognitive Behavioral Therapy (CBT). Implements validated clinical screening scales (PHQ-9, GAD-7), a deterministic crisis protocol, and data governance in compliance with Brazil's LGPD.
 
-> **Academic project** — Desafios ao Ciberespaço · Universidade de Fortaleza (Unifor) · 2026.1
+> Academic project — Desafios ao Ciberespaço · Universidade de Fortaleza (Unifor) · 2026.1
 
 ---
 
-## ✨ Features
+## Features
 
 - **Adaptive CBT Chat** — context-aware responses grounded in cognitive-behavioral techniques
 - **Clinical Screening** — PHQ-9 (depression) and GAD-7 (anxiety) validated scales with severity reports
@@ -23,7 +23,7 @@ Conversational AI platform for complementary psychological support based on Cogn
 
 ---
 
-## 🛡️ Security Architecture
+## Security Architecture
 
 | Layer | Implementation |
 |---|---|
@@ -35,7 +35,7 @@ Conversational AI platform for complementary psychological support based on Cogn
 
 ---
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 | Technology | Version | Role |
 |---|---|---|
@@ -47,22 +47,15 @@ Conversational AI platform for complementary psychological support based on Cogn
 
 ---
 
-## 🚀 Running Locally
+## Running Locally
 
 ```bash
-# 1. Clone the repository
 git clone https://github.com/cauaalvs-dev/mindai.git
 cd mindai
-
-# 2. Install dependencies
 npm install
-
-# 3. Set up environment variables
 cp .env.local.example .env.local
-# Generate a key: openssl rand -hex 32
-# Paste it as MINDAI_ENCRYPTION_KEY in .env.local
-
-# 4. Start the development server
+# Generate key: openssl rand -hex 32
+# Paste as MINDAI_ENCRYPTION_KEY in .env.local
 npm run dev
 ```
 
@@ -70,20 +63,14 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ---
 
-## 📂 Project Structure
+## Project Structure
 
 ```
 src/
 ├── app/
-│   ├── api/
-│   │   └── chat/
-│   │       └── route.ts       # API: chat engine + crisis protocol
-│   ├── chat/
-│   │   └── page.tsx           # Conversational interface
-│   ├── dashboard/
-│   │   └── page.tsx           # Clinical dashboard + PHQ-9 assessment
-│   ├── layout.tsx
-│   ├── globals.css
+│   ├── api/chat/route.ts      # API: chat engine + crisis protocol
+│   ├── chat/page.tsx          # Conversational interface
+│   ├── dashboard/page.tsx     # Clinical dashboard + PHQ-9 assessment
 │   └── page.tsx               # Landing page
 └── utils/
     └── mindai-core.ts         # Core: encryption, clinical scales, crisis detector
@@ -91,11 +78,9 @@ src/
 
 ---
 
-## 🌐 Deploy
+## Deploy
 
-Hosted on [Vercel](https://vercel.com). Every push to `main` triggers an automatic production deployment.
-
-**Required environment variable:**
+Hosted on Vercel. Every push to `main` triggers an automatic production deployment.
 
 | Variable | Description |
 |---|---|
@@ -103,16 +88,12 @@ Hosted on [Vercel](https://vercel.com). Every push to `main` triggers an automat
 
 ---
 
-## ⚠️ Disclaimer
+## Disclaimer
 
-MindAI is an academic prototype and does **not** replace professional psychological or psychiatric care. In case of emotional crisis, contact:
-
-- **CVV** (Centro de Valorização da Vida): **188** — free, 24/7
-- **SAMU**: **192**
-- **CAPS** (Centro de Atenção Psicossocial): seek the nearest unit
+MindAI is an academic prototype and does not replace professional psychological or psychiatric care. In case of emotional crisis, contact CVV (188), SAMU (192), or the nearest CAPS unit.
 
 ---
 
-## 📜 License
+## License
 
 [MIT](LICENSE) © 2026 Cauã Alves
